@@ -6,43 +6,36 @@ public class PuzzleGeneration : MonoBehaviour
 {
     #region Inspector variables
 
-    [SerializeField]
-    private Transform Blocker;
-
-    [SerializeField]
-    private GameObject IngameContainer;
-
-    [SerializeField]
-    private GameObject MenuContainer;
-
-    [SerializeField]
-    private GameObject PiecePrefab;
-
-    [SerializeField]
-    private GameObject PuzzleContainer;
-
-    [SerializeField]
-    private Camera NormalCamera;
-
-    [SerializeField]
-    private Text TextLabel;
+    [SerializeField] private Transform Blocker;
+    [SerializeField] private GameObject IngameContainer;
+    [SerializeField] private GameObject MenuContainer;
+    [SerializeField] private GameObject PiecePrefab;
+    [SerializeField] private GameObject PuzzleContainer;
+    [SerializeField] private Camera NormalCamera;
+    [SerializeField] private Text TextLabel;
 
     #endregion Inspector variables
 
-    private int currentHeight;
-    private int currentWidth;
-    private PieceBehaviour[,] gameGrid = null;
+    public int Height { get; private set; }
+    public int Width { get; private set; }
+    public PieceBehaviour[,] GameGrid { get; private set; }
+    public long PressCount { get; private set; }
 
-    private long pressCount = 0;
+    public static bool AllowInput { get; private set; }
+    public static bool GameIsActive { get; private set; }
+
+    public static PuzzleGeneration Instance { get; private set; }
 
     private Vector2[] presses = null;
 
     private int stepCount = 0;
-
-    public static bool AllowInput { get; private set; }
-
-    public static bool GameIsActive { get; private set; }
-
+    
+    private void Awake()
+    {
+        Instance = this;
+        ShowMenu(true);
+    }
+    
     #region UI Button-events
 
     public void GenerateOne()
@@ -68,7 +61,7 @@ public class PuzzleGeneration : MonoBehaviour
 
         if (GameIsActive)
         {
-            UpdatePressCount(pressCount + 1);
+            UpdatePressCount(PressCount + 1);
 
             if (DidCompleteGame())
             {
@@ -96,29 +89,24 @@ public class PuzzleGeneration : MonoBehaviour
         }
     }
 
-    private void Awake()
-    {
-        ShowMenu(true);
-    }
-
     private void DeleteGrid()
     {
-        if (gameGrid != null)
+        if (GameGrid != null)
         {
-            foreach (PieceBehaviour piece in gameGrid)
+            foreach (PieceBehaviour piece in GameGrid)
             {
                 GameObject.Destroy(piece.gameObject);
             }
 
-            gameGrid = null;
+            GameGrid = null;
         }
     }
-    
+
     private bool DidCompleteGame()
     {
         bool? state = null; // the state that all the pieces need to be in, if null, can be either
 
-        foreach (PieceBehaviour item in gameGrid)
+        foreach (PieceBehaviour item in GameGrid)
         {
             if (state == null)
             {
@@ -137,18 +125,18 @@ public class PuzzleGeneration : MonoBehaviour
     // Currently disabled
     private void EasterEgg()
     {
-        if (gameGrid != null)
+        if (GameGrid != null)
         {
             // Will conflict with menu-button
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                foreach (var item in gameGrid)
+                foreach (var item in GameGrid)
                 {
                     item.GetComponent<Rigidbody2D>().isKinematic = !item.GetComponent<Rigidbody2D>().isKinematic;
                 }
             }
 
-            foreach (var item in gameGrid)
+            foreach (var item in GameGrid)
             {
                 Rigidbody2D rigid = item.GetComponent<Rigidbody2D>();
 
@@ -163,18 +151,18 @@ public class PuzzleGeneration : MonoBehaviour
         }
     }
 
-    private void GenerateGrid(int width, int height)
+    public void GenerateGrid(int width, int height)
     {
         ShowMenu(false);
-        Blocker.localScale = new Vector3(width, height, 1);
+        //Blocker.localScale = new Vector3(width, height, 1);
         GameIsActive = false;
         AllowInput = true;
         DeleteGrid();
 
-        currentWidth = width;
-        currentHeight = height;
+        Width = width;
+        Height = height;
 
-        gameGrid = new PieceBehaviour[width, height];
+        GameGrid = new PieceBehaviour[width, height];
 
         for (int x = 0; x < width; x++)
         {
@@ -184,18 +172,19 @@ public class PuzzleGeneration : MonoBehaviour
                 spawnedObject.transform.parent = PuzzleContainer.transform;
                 spawnedObject.transform.localPosition = new Vector2(x, y);
 
-                gameGrid[x, y] = spawnedObject.GetComponent<PieceBehaviour>();
-                gameGrid[x, y].Initialize(x, y);
+                GameGrid[x, y] = spawnedObject.GetComponent<PieceBehaviour>();
+                GameGrid[x, y].Initialize(x, y);
             }
         }
 
         presses = new Vector2[50];
+
         for (int i = 0; i < 50; i++)
         {
             int x = Random.Range(0, width);
             int y = Random.Range(0, height);
 
-            gameGrid[x, y].Press();
+            GameGrid[x, y].Press();
             presses[i] = new Vector2(x, y);
         }
 
@@ -221,26 +210,26 @@ public class PuzzleGeneration : MonoBehaviour
 
     private void PatternPress(int x, int y)
     {
-        gameGrid[x, y].Press(false);
+        GameGrid[x, y].Press(false);
 
         if (x > 0)
         {
-            gameGrid[x - 1, y].Press(false);
+            GameGrid[x - 1, y].Press(false);
         }
 
-        if (x < currentWidth - 1)
+        if (x < Width - 1)
         {
-            gameGrid[x + 1, y].Press(false);
+            GameGrid[x + 1, y].Press(false);
         }
 
         if (y > 0)
         {
-            gameGrid[x, y - 1].Press(false);
+            GameGrid[x, y - 1].Press(false);
         }
 
-        if (y < currentHeight - 1)
+        if (y < Height - 1)
         {
-            gameGrid[x, y + 1].Press(false);
+            GameGrid[x, y + 1].Press(false);
         }
     }
 
@@ -248,12 +237,12 @@ public class PuzzleGeneration : MonoBehaviour
     {
         while (GameIsActive)
         {
-            int x = Random.Range(0, currentWidth);
-            int y = Random.Range(0, currentHeight);
+            int x = Random.Range(0, Width);
+            int y = Random.Range(0, Height);
 
-            gameGrid[x, y].Press();
+            GameGrid[x, y].Press();
 
-            if (pressCount % 10000 == 0)
+            if (PressCount % 10000 == 0)
             {
                 yield return null;
             }
@@ -263,32 +252,35 @@ public class PuzzleGeneration : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.F1))
-        {
-            GenerateGrid(3, 3);
-        }
-
-        if (Input.GetKeyDown(KeyCode.F2) && stepCount < 10)
-        {
-            Vector2 pos = presses[9 - stepCount];
-            gameGrid[(int)pos.x, (int)pos.y].Press();
-            stepCount++;
-        }
-
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             ShowMenu(!MenuContainer.activeSelf);
         }
 
-        if (Input.GetKeyDown(KeyCode.F3))
-        {
-            StartCoroutine(Test());
-        }
+
+        
+        //if (Input.GetKeyDown(KeyCode.F1))
+        //{
+        //    GenerateGrid(3, 3);
+        //}
+
+        //if (Input.GetKeyDown(KeyCode.F2) && stepCount < 10)
+        //{
+        //    Vector2 pos = presses[9 - stepCount];
+        //    GameGrid[(int)pos.x, (int)pos.y].Press();
+        //    stepCount++;
+        //}
+
+
+        //if (Input.GetKeyDown(KeyCode.F3))
+        //{
+        //    StartCoroutine(Test());
+        //}
     }
 
     private void UpdatePressCount(long count)
     {
-        pressCount = count;
+        PressCount = count;
         TextLabel.text = count.ToString();
     }
 }
